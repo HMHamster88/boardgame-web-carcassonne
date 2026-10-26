@@ -2,7 +2,6 @@ import type { GameFrontService, PlayerGameInstanceSettings, PlayerGameSettings }
 import type { Component } from "vue";
 
 import GameView from "./components/GameView.vue";
-import PlayerComponent from "./components/PlayerComponent.vue";
 import Settings from "./components/Settings.vue";
 import StatisticsComponent from "./components/StatisticsComponent.vue";
 import { createOrMigrateObject, type ObjectMigration } from "boardgame-web-common";
@@ -41,7 +40,7 @@ export class CarcassonneFrontService implements GameFrontService {
     type: string = carcassonneGameType
     settingsComponent: Component = Settings
     gameViewComponent: Component = GameView
-    playerComponent: Component = PlayerComponent
+    playerComponent: Component | undefined = undefined
     statisticsComponent: Component | undefined = StatisticsComponent
     localization: any = {
         en: {
