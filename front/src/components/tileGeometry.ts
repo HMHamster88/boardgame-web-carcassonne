@@ -33,8 +33,17 @@ export function getFeatureAnchor(
     }
     if (featureType === 'field') {
         const sides = template.fieldSides[segmentIndex] ?? [];
-        const side = sides[0];
-        return side === undefined ? { x: 0.5, y: 0.5 } : fieldSideAnchors[side]!;
+        if (sides.length === 0) {
+            return { x: 0.5, y: 0.5 };
+        }
+        if (sides.length === 8) {
+            return fieldSideAnchors[sides[0]!];
+        }
+        const anchors = sides.map(side => fieldSideAnchors[side]);
+        return {
+            x: anchors.reduce((sum, anchor) => sum + anchor.x, 0) / anchors.length,
+            y: anchors.reduce((sum, anchor) => sum + anchor.y, 0) / anchors.length
+        };
     }
 
     const edges = featureType === 'city'
