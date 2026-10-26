@@ -133,7 +133,7 @@ const { t } = useI18n({
             tilesRemaining: 'Tiles remaining: {count}',
             currentTile: 'Current tile',
             rotateToPlace: '{player} must rotate the tile to place it',
-            rotateToPlaceHint: 'Rotate the tile to place it',
+            rotateToPlaceHint: 'Click a highlighted cell to rotate the tile to a fitting angle',
             featureSegment: '{feature} {index}',
             noFollowers: 'All followers are already on the board',
             allFeaturesOccupied: 'Every feature on this tile already has a follower',
@@ -161,7 +161,7 @@ const { t } = useI18n({
             tilesRemaining: 'Осталось плиток: {count}',
             currentTile: 'Текущая плитка',
             rotateToPlace: '{player} должен повернуть плитку, чтобы выложить её',
-            rotateToPlaceHint: 'Поверните плитку, чтобы выложить её',
+            rotateToPlaceHint: 'Нажмите на подсвеченную клетку, чтобы повернуть плитку подходящим образом',
             featureSegment: '{feature} {index}',
             noFollowers: 'Все подданные уже на поле',
             allFeaturesOccupied: 'На каждой области этой плитки уже есть подданный',
@@ -371,9 +371,25 @@ function createTileId(x: number, y: number) {
 }
 
 function placeTile(cell: { x: number, y: number }) {
-    if (!canPlace.value || !placeableCells.value.has(positionKey(cell.x, cell.y))) {
+    if (!canPlace.value) {
         return;
     }
+
+    const templateId = props.gameState.currentTile;
+    if (!templateId) {
+        return;
+    }
+
+    if (!placeableCells.value.has(positionKey(cell.x, cell.y))) {
+        const targetRotation = [0, 1, 2, 3].find(candidateRotation =>
+            canPlaceTile(props.gameState.board, templateId, cell.x, cell.y, candidateRotation)
+        );
+        if (targetRotation !== undefined) {
+            rotation.value = targetRotation;
+        }
+        return;
+    }
+
     const action: CarcassonnePlaceLandTileAction = {
         type: 'PlaceLandTileAction',
         tileId: createTileId(cell.x, cell.y),
@@ -590,8 +606,13 @@ const props = defineProps({
 }
 
 .empty-cell.needs-rotation {
+    cursor: pointer;
     stroke: #b26a00;
     fill: #ffe08a33;
+}
+
+.empty-cell.needs-rotation:hover {
+    fill: #ffe08a66;
 }
 
 .legend {
