@@ -11,6 +11,7 @@ interface TileRect {
 export interface CityPath {
     groupIndex: number;
     d: string;
+    walls: string[];
 }
 
 export interface PennantArt {
@@ -22,6 +23,7 @@ export interface PennantArt {
 
 const CITY_DEPTH = 0.3;
 const CITY_STRIP = 0.28;
+const CITY_WALL_BOW = 0.05;
 
 const inwardDirections: TilePoint[] = [
     { x: 0, y: 1 },
@@ -211,6 +213,130 @@ function polygonToPath(points: TilePoint[], size: number): string {
     return path.join(' ');
 }
 
+function midpoint(from: TilePoint, to: TilePoint): TilePoint {
+    return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+}
+
+function insetWallPoint(point: TilePoint, endpoint: boolean): TilePoint {
+    if (endpoint) {
+        return point;
+    }
+
+    const onVerticalEdge = point.x === 0 || point.x === 1;
+    const onHorizontalEdge = point.y === 0 || point.y === 1;
+
+    if (onVerticalEdge && onHorizontalEdge) {
+        return point;
+    }
+    if (point.x === 0) {
+        return { x: CITY_WALL_BOW, y: point.y };
+    }
+    if (point.x === 1) {
+        return { x: 1 - CITY_WALL_BOW, y: point.y };
+    }
+    if (point.y === 0) {
+        return { x: point.x, y: CITY_WALL_BOW };
+    }
+    if (point.y === 1) {
+        return { x: point.x, y: 1 - CITY_WALL_BOW };
+    }
+    return point;
+}
+
+function smoothPathCommands(points: TilePoint[], size: number, includeMove: boolean): string[] {
+    if (points.length < 2) {
+        return [];
+    }
+
+    const commands: string[] = [];
+    if (includeMove) {
+        commands.push(`M ${formatPoint(points[0]!, size)}`);
+    }
+    if (points.length === 2) {
+        commands.push(`L ${formatPoint(points[1]!, size)}`);
+        return commands;
+    }
+
+    const midpoints = points.slice(0, -1).map((point, index) => midpoint(point, points[index + 1]!));
+    commands.push(`L ${formatPoint(midpoints[0]!, size)}`);
+    for (let index = 1; index < points.length - 1; index += 1) {
+        commands.push(`Q ${formatPoint(points[index]!, size)} ${formatPoint(midpoints[index]!, size)}`);
+    }
+    commands.push(`L ${formatPoint(points[points.length - 1]!, size)}`);
+    return commands;
+}
+
+function segmentEdge(from: TilePoint, to: TilePoint): number | undefined {
+    if (from.y === 0 && to.y === 0) {
+        return 0;
+    }
+    if (from.x === 1 && to.x === 1) {
+        return 1;
+    }
+    if (from.y === 1 && to.y === 1) {
+        return 2;
+    }
+    if (from.x === 0 && to.x === 0) {
+        return 3;
+    }
+    return undefined;
+}
+
+function cityArtForEdges(points: TilePoint[], edges: number[], size: number): { d: string; walls: string[] } {
+    if (points.length === 0) {
+        return { d: '', walls: [] };
+    }
+
+    const openEdges = new Set(edges);
+    const segments = points.map((from, index) => {
+        const to = points[(index + 1) % points.length]!;
+        const edge = segmentEdge(from, to);
+        return {
+            from,
+            to,
+            wall: edge === undefined || !openEdges.has(edge)
+        };
+    });
+
+    if (!segments.some(segment => segment.wall)) {
+        return { d: polygonToPath(points, size), walls: [] };
+    }
+
+    const startIndex = segments.findIndex(segment => !segment.wall);
+    const start = startIndex === -1 ? 0 : startIndex;
+    const commands: string[] = [`M ${formatPoint(points[start]!, size)}`];
+    const walls: string[] = [];
+    let offset = 0;
+
+    while (offset < segments.length) {
+        const segment = segments[(start + offset) % segments.length]!;
+        if (!segment.wall) {
+            commands.push(`L ${formatPoint(segment.to, size)}`);
+            offset += 1;
+            continue;
+        }
+
+        const chain: TilePoint[] = [segment.from];
+        while (offset < segments.length) {
+            const current = segments[(start + offset) % segments.length]!;
+            if (!current.wall) {
+                break;
+            }
+            chain.push(current.to);
+            offset += 1;
+        }
+
+        const adjusted = chain.map((point, index) =>
+            insetWallPoint(point, index === 0 || index === chain.length - 1));
+        const wallCommands = smoothPathCommands(adjusted, size, false);
+        commands.push(...wallCommands);
+        walls.push([`M ${formatPoint(adjusted[0]!, size)}`, ...wallCommands].join(' '));
+    }
+
+    commands.push('Z');
+    return { d: commands.join(' '), walls };
+}
+
 export function roadPathData(template: CarcassonneTileTemplate, size: number): string {
     const allCityRects = template.cityGroups.flatMap(cityRectsForEdges);
     const paths: string[] = [];
@@ -259,7 +385,12 @@ export function cityPaths(template: CarcassonneTileTemplate, size: number): City
         if (!points) {
             return [];
         }
-        return [{ groupIndex, d: polygonToPath(points, size) }];
+        const art = cityArtForEdges(points, group, size);
+        return [{
+            groupIndex,
+            d: art.d,
+            walls: art.walls
+        }];
     });
 }
 

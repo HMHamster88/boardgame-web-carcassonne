@@ -20,23 +20,26 @@
             </pattern>
 
             <clipPath :id="tileClipId">
-                <rect :width="size" :height="size" :rx="size * 0.06" />
+                <rect :width="size" :height="size" />
             </clipPath>
         </defs>
 
         <g :transform="`rotate(${rotation * 90} ${size / 2} ${size / 2})`">
             <g :clip-path="`url(#${tileClipId})`">
-                <rect :width="size" :height="size" :rx="size * 0.06" fill="#82b35a" class="tile-base" />
-                <rect :width="size" :height="size" :rx="size * 0.06" :fill="`url(#${grassPatternId})`"
+                <rect :width="size" :height="size" fill="#82b35a" class="tile-base" />
+                <rect :width="size" :height="size" :fill="`url(#${grassPatternId})`"
                     class="tile-texture" />
 
                 <path v-if="roadD" :d="roadD" class="road-outline" :stroke-width="size * 0.055" />
                 <path v-if="roadD" :d="roadD" class="road-surface" :stroke-width="size * 0.032" />
 
                 <g v-for="city in cityArt" :key="`city-${city.groupIndex}`" class="city">
-                    <path :d="city.d" :fill="`url(#${cityPatternId})`" class="city-body"
-                        :stroke-width="size * 0.035" />
-                    <path :d="city.d" fill="none" class="city-highlight" :stroke-width="size * 0.012" />
+                    <path :d="city.d" :fill="`url(#${cityPatternId})`" class="city-body" />
+                    <path v-for="(wall, wallIndex) in city.walls" :key="`city-wall-${city.groupIndex}-${wallIndex}`"
+                        :d="wall" fill="none" class="city-wall" :stroke-width="size * 0.035" />
+                    <path v-for="(wall, wallIndex) in city.walls"
+                        :key="`city-wall-highlight-${city.groupIndex}-${wallIndex}`" :d="wall" fill="none"
+                        class="city-highlight" :stroke-width="size * 0.012" />
                 </g>
 
                 <g v-if="template.cloister" class="cloister"
@@ -76,7 +79,7 @@
             </g>
 
             <rect :x="size * 0.012" :y="size * 0.012" :width="size * 0.976" :height="size * 0.976"
-                :rx="size * 0.052" fill="none" class="tile-border" :stroke-width="size * 0.016" />
+                fill="none" class="tile-border" :stroke-width="size * 0.016" />
         </g>
 
         <text v-if="showCoordinates && x !== undefined && y !== undefined" x="4" y="12" class="coordinate-label">
@@ -327,15 +330,17 @@ const followerMarkers = computed(() => {
     stroke-linejoin: round;
 }
 
-.city-body {
+.city-wall {
     stroke: #7a5528;
     stroke-linejoin: round;
+    stroke-linecap: round;
 }
 
 .city-highlight {
     stroke: #e7c58e;
     stroke-opacity: 0.55;
     stroke-linejoin: round;
+    stroke-linecap: round;
 }
 
 .cloister-building {
