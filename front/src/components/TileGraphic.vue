@@ -62,9 +62,9 @@
                 </g>
 
                 <g v-for="(pennant, index) in pennantArt" :key="`pennant-${index}`" class="pennant">
-                    <line :x1="pennant.x" :y1="pennant.y" :x2="pennant.x" :y2="pennant.poleBottom"
-                        class="pennant-pole" :stroke-width="size * 0.012" />
-                    <path :d="pennant.flag" class="pennant-flag" :stroke-width="size * 0.008" />
+                    <path :d="pennant.shield" class="pennant-shield-white" />
+                    <path :d="pennant.blueHalf" class="pennant-shield-blue" />
+                    <path :d="pennant.shield" class="pennant-shield-outline" :stroke-width="size * 0.008" />
                 </g>
 
                 <template v-if="showFeatures">
@@ -385,14 +385,17 @@ const followerMarkers = computed(() => {
     stroke: #7a5528;
 }
 
-.pennant-pole {
-    stroke: #5d4326;
-    stroke-linecap: round;
+.pennant-shield-white {
+    fill: #f7fbff;
 }
 
-.pennant-flag {
-    fill: #ffd35c;
-    stroke: #8a6d00;
+.pennant-shield-blue {
+    fill: #2f6fb3;
+}
+
+.pennant-shield-outline {
+    fill: none;
+    stroke: #243b5a;
     stroke-linejoin: round;
 }
 

@@ -15,10 +15,8 @@ export interface CityPath {
 }
 
 export interface PennantArt {
-    x: number;
-    y: number;
-    poleBottom: number;
-    flag: string;
+    shield: string;
+    blueHalf: string;
 }
 
 const CITY_DEPTH = 0.3;
@@ -404,35 +402,54 @@ export function pennantPlacements(template: CarcassonneTileTemplate, size: numbe
             continue;
         }
 
-        const base = pennantBaseForEdge(group[0]!);
+        const center = pennantCenterForEdge(group[0]!);
         const offset = group[0] === 0 || group[0] === 2
             ? { x: 0.1, y: 0 }
             : { x: 0, y: 0.1 };
 
+        const shieldWidth = size * 0.11;
+        const shieldHeight = size * 0.13;
+
         for (let index = 0; index < count; index += 1) {
-            const x = (base.x + offset.x * index) * size;
-            const y = (base.y + offset.y * index) * size;
-            placements.push({
-                x,
-                y,
-                poleBottom: y + size * 0.12,
-                flag: `M ${x} ${y} L ${x + size * 0.11} ${y + size * 0.03} L ${x} ${y + size * 0.06} Z`
-            });
+            placements.push(shieldPaths(
+                (center.x + offset.x * index) * size,
+                (center.y + offset.y * index) * size,
+                shieldWidth,
+                shieldHeight
+            ));
         }
     }
 
     return placements;
 }
 
-function pennantBaseForEdge(edge: number): TilePoint {
+function shieldPaths(centerX: number, centerY: number, width: number, height: number): PennantArt {
+    const halfWidth = width / 2;
+    const halfHeight = height / 2;
+    const left = centerX - halfWidth;
+    const right = centerX + halfWidth;
+    const top = centerY - halfHeight;
+    const bottom = centerY + halfHeight;
+    const shoulderY = top + height * 0.46;
+    const curveControlY = top + height * 0.7;
+    const tipControlX = width * 0.26;
+    const tipControlY = bottom - height * 0.06;
+
+    return {
+        shield: `M ${left} ${top} L ${right} ${top} L ${right} ${shoulderY} C ${right} ${curveControlY} ${centerX + tipControlX} ${tipControlY} ${centerX} ${bottom} C ${centerX - tipControlX} ${tipControlY} ${left} ${curveControlY} ${left} ${shoulderY} Z`,
+        blueHalf: `M ${centerX} ${top} L ${right} ${top} L ${right} ${shoulderY} C ${right} ${curveControlY} ${centerX + tipControlX} ${tipControlY} ${centerX} ${bottom} Z`
+    };
+}
+
+function pennantCenterForEdge(edge: number): TilePoint {
     if (edge === 0) {
-        return { x: 0.62, y: 0.14 };
+        return { x: 0.675, y: 0.2 };
     }
     if (edge === 1) {
-        return { x: 0.86, y: 0.62 };
+        return { x: 0.91, y: 0.62 };
     }
     if (edge === 2) {
-        return { x: 0.38, y: 0.86 };
+        return { x: 0.435, y: 0.84 };
     }
-    return { x: 0.14, y: 0.38 };
+    return { x: 0.195, y: 0.44 };
 }
