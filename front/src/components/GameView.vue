@@ -616,18 +616,18 @@ const props = defineProps({
 }
 
 .legend-city {
-    background-color: #b98b5e;
+    background-color: #c8a165;
 }
 
 .legend-road {
-    background-color: #d9d9d9;
+    background-color: #f2e3c2;
 }
 
 .legend-field {
-    background-color: #7fb069;
+    background-color: #82b35a;
 }
 
 .legend-cloister {
-    background-color: #9b7ede;
+    background-color: #a8613f;
 }
 </style>

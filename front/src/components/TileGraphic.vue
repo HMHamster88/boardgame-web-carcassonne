@@ -1,28 +1,82 @@
 <template>
     <g v-if="template">
+        <defs>
+            <pattern :id="grassPatternId" :width="grassPattern.width" :height="grassPattern.height"
+                patternUnits="userSpaceOnUse">
+                <path v-for="(tuft, index) in grassPattern.tufts" :key="`grass-${index}`" :d="tuft.d" fill="none"
+                    stroke="#5d8640" :stroke-width="tuft.width" stroke-linecap="round" :opacity="tuft.opacity" />
+                <circle :cx="grassPattern.dot.cx" :cy="grassPattern.dot.cy" :r="grassPattern.dot.r" fill="#5d8640"
+                    :opacity="grassPattern.dot.opacity" />
+            </pattern>
+
+            <pattern :id="cityPatternId" :width="cityPattern.width" :height="cityPattern.height"
+                patternUnits="userSpaceOnUse">
+                <rect :width="cityPattern.width" :height="cityPattern.height" fill="#c8a165" />
+                <g v-for="(building, index) in cityPattern.buildings" :key="`building-${index}`">
+                    <rect :x="building.x" :y="building.y" :width="building.width" :height="building.height"
+                        :rx="building.rx" :fill="building.fill" />
+                    <path :d="building.roof" :fill="building.roofFill" />
+                </g>
+            </pattern>
+
+            <clipPath :id="tileClipId">
+                <rect :width="size" :height="size" :rx="size * 0.06" />
+            </clipPath>
+        </defs>
+
         <g :transform="`rotate(${rotation * 90} ${size / 2} ${size / 2})`">
-            <rect :width="size" :height="size" rx="4" class="tile-base" />
+            <g :clip-path="`url(#${tileClipId})`">
+                <rect :width="size" :height="size" :rx="size * 0.06" fill="#82b35a" class="tile-base" />
+                <rect :width="size" :height="size" :rx="size * 0.06" :fill="`url(#${grassPatternId})`"
+                    class="tile-texture" />
 
-            <rect v-for="cityRect in cityRects" :key="`city-${cityRect.direction}`" :x="cityRect.x" :y="cityRect.y"
-                :width="cityRect.width" :height="cityRect.height" :rx="size * 0.06" class="city-edge" />
+                <path v-if="roadD" :d="roadD" class="road-outline" :stroke-width="size * 0.055" />
+                <path v-if="roadD" :d="roadD" class="road-surface" :stroke-width="size * 0.032" />
 
-            <line v-for="(roadLine, index) in roadLines" :key="`road-${index}`" :x1="roadLine.x1" :y1="roadLine.y1"
-                :x2="roadLine.x2" :y2="roadLine.y2" class="road-edge" />
+                <g v-for="city in cityArt" :key="`city-${city.groupIndex}`" class="city">
+                    <path :d="city.d" :fill="`url(#${cityPatternId})`" class="city-body"
+                        :stroke-width="size * 0.035" />
+                    <path :d="city.d" fill="none" class="city-highlight" :stroke-width="size * 0.012" />
+                </g>
 
-            <circle v-if="template.cloister" :cx="size / 2" :cy="size / 2" :r="size * 0.17" class="cloister-edge" />
-            <circle v-if="template.cloister" :cx="size / 2" :cy="size / 2" :r="size * 0.08" class="cloister-inner" />
+                <g v-if="template.cloister" class="cloister"
+                    :transform="`rotate(${-rotation * 90} ${size / 2} ${size / 2})`">
+                    <rect :x="cloisterArt.base.x" :y="cloisterArt.base.y" :width="cloisterArt.base.width"
+                        :height="cloisterArt.base.height" :rx="cloisterArt.base.rx" class="cloister-building"
+                        :stroke-width="size * 0.018" />
+                    <path :d="cloisterArt.roof" class="cloister-roof" :stroke-width="size * 0.018" />
+                    <line :x1="cloisterArt.crossVertical.x1" :y1="cloisterArt.crossVertical.y1"
+                        :x2="cloisterArt.crossVertical.x2" :y2="cloisterArt.crossVertical.y2" class="cloister-cross"
+                        :stroke-width="size * 0.012" />
+                    <line :x1="cloisterArt.crossHorizontal.x1" :y1="cloisterArt.crossHorizontal.y1"
+                        :x2="cloisterArt.crossHorizontal.x2" :y2="cloisterArt.crossHorizontal.y2"
+                        class="cloister-cross" :stroke-width="size * 0.012" />
+                    <rect :x="cloisterArt.door.x" :y="cloisterArt.door.y" :width="cloisterArt.door.width"
+                        :height="cloisterArt.door.height" :rx="cloisterArt.door.rx" class="cloister-door" />
+                    <rect v-for="(window, index) in cloisterArt.windows" :key="`cloister-window-${index}`"
+                        :x="window.x" :y="window.y" :width="window.size" :height="window.size"
+                        :rx="size * 0.006" class="cloister-window" :stroke-width="size * 0.008" />
+                </g>
 
-            <template v-if="showFeatures">
-                <text v-for="label in edgeLabels" :key="`label-${label.direction}`" :x="label.x" :y="label.y"
-                    class="edge-label">{{ label.text }}</text>
-            </template>
+                <g v-for="(pennant, index) in pennantArt" :key="`pennant-${index}`" class="pennant">
+                    <line :x1="pennant.x" :y1="pennant.y" :x2="pennant.x" :y2="pennant.poleBottom"
+                        class="pennant-pole" :stroke-width="size * 0.012" />
+                    <path :d="pennant.flag" class="pennant-flag" :stroke-width="size * 0.008" />
+                </g>
 
-            <g v-for="(marker, index) in followerMarkers" :key="`follower-${index}`">
-                <circle :cx="marker.x" :cy="marker.y" :r="size * 0.075" :fill="marker.color" class="follower" />
-                <text :x="marker.x" :y="marker.y + size * 0.03" class="follower-label">{{ marker.label }}</text>
+                <template v-if="showFeatures">
+                    <text v-for="label in edgeLabels" :key="`label-${label.direction}`" :x="label.x" :y="label.y"
+                        class="edge-label">{{ label.text }}</text>
+                </template>
+
+                <g v-for="(marker, index) in followerMarkers" :key="`follower-${index}`">
+                    <circle :cx="marker.x" :cy="marker.y" :r="size * 0.075" :fill="marker.color" class="follower" />
+                    <text :x="marker.x" :y="marker.y + size * 0.03" class="follower-label">{{ marker.label }}</text>
+                </g>
             </g>
 
-            <path v-if="hasPennant" :d="pennantPath" class="pennant" />
+            <rect :x="size * 0.012" :y="size * 0.012" :width="size * 0.976" :height="size * 0.976"
+                :rx="size * 0.052" fill="none" class="tile-border" :stroke-width="size * 0.016" />
         </g>
 
         <text v-if="showCoordinates && x !== undefined && y !== undefined" x="4" y="12" class="coordinate-label">
@@ -40,8 +94,9 @@
 import type { Player } from 'boardgame-web-common';
 import type { CarcassonneFollower, CarcassonneFollowerType, CarcassonneTileTemplate } from 'carcassonne-back';
 import { getTileTemplate } from 'carcassonne-back';
-import { computed, type PropType } from 'vue';
-import { edgeMidpoints, getFeatureAnchor } from './tileGeometry';
+import { computed, useId, type PropType } from 'vue';
+import { cityPaths, pennantPlacements, roadPathData } from './tileArt';
+import { getFeatureAnchor } from './tileGeometry';
 
 const props = defineProps({
     templateId: {
@@ -84,49 +139,117 @@ const props = defineProps({
 
 const template = computed<CarcassonneTileTemplate | undefined>(() => getTileTemplate(props.templateId));
 
-const cityRects = computed(() => {
-    const currentTemplate = template.value;
-    if (!currentTemplate) {
-        return [];
-    }
+const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+const grassPatternId = `grass-pattern-${instanceId}`;
+const cityPatternId = `city-pattern-${instanceId}`;
+const tileClipId = `tile-clip-${instanceId}`;
 
-    const depth = props.size * 0.3;
-
-    return currentTemplate.edges.flatMap((edge, direction) => {
-        if (edge !== 'city') {
-            return [];
+const grassPattern = computed(() => {
+    const size = props.size;
+    return {
+        width: size * 0.2,
+        height: size * 0.2,
+        tufts: [
+            {
+                d: `M ${size * 0.03} ${size * 0.15} q ${size * 0.02} -${size * 0.04} ${size * 0.04} 0`,
+                width: size * 0.014,
+                opacity: 0.35
+            },
+            {
+                d: `M ${size * 0.12} ${size * 0.08} q ${size * 0.015} -${size * 0.03} ${size * 0.03} 0`,
+                width: size * 0.012,
+                opacity: 0.25
+            }
+        ],
+        dot: {
+            cx: size * 0.08,
+            cy: size * 0.05,
+            r: size * 0.008,
+            opacity: 0.3
         }
-        if (direction === 0) {
-            return [{ direction, x: 0, y: 0, width: props.size, height: depth }];
-        }
-        if (direction === 1) {
-            return [{ direction, x: props.size - depth, y: 0, width: depth, height: props.size }];
-        }
-        if (direction === 2) {
-            return [{ direction, x: 0, y: props.size - depth, width: props.size, height: depth }];
-        }
-        return [{ direction, x: 0, y: 0, width: depth, height: props.size }];
-    });
+    };
 });
 
-const roadLines = computed(() => {
-    const currentTemplate = template.value;
-    if (!currentTemplate) {
-        return [];
-    }
+const cityPattern = computed(() => {
+    const size = props.size;
+    return {
+        width: size * 0.22,
+        height: size * 0.16,
+        buildings: [
+            {
+                x: size * 0.025,
+                y: size * 0.035,
+                width: size * 0.075,
+                height: size * 0.05,
+                rx: size * 0.008,
+                fill: '#b98b5e',
+                roof: `M ${size * 0.02} ${size * 0.035} L ${size * 0.0625} ${size * 0.008} L ${size * 0.105} ${size * 0.035} Z`,
+                roofFill: '#96623a'
+            },
+            {
+                x: size * 0.135,
+                y: size * 0.085,
+                width: size * 0.065,
+                height: size * 0.045,
+                rx: size * 0.007,
+                fill: '#d4b27a',
+                roof: `M ${size * 0.13} ${size * 0.085} L ${size * 0.1675} ${size * 0.06} L ${size * 0.205} ${size * 0.085} Z`,
+                roofFill: '#a97444'
+            }
+        ]
+    };
+});
 
-    return currentTemplate.edges.flatMap((edge, direction) => {
-        if (edge !== 'road') {
-            return [];
-        }
-        const midpoint = edgeMidpoints[direction]!;
-        return [{
-            x1: midpoint.x * props.size,
-            y1: midpoint.y * props.size,
-            x2: props.size / 2,
-            y2: props.size / 2
-        }];
-    });
+const cityArt = computed(() => {
+    const currentTemplate = template.value;
+    return currentTemplate ? cityPaths(currentTemplate, props.size) : [];
+});
+
+const roadD = computed(() => {
+    const currentTemplate = template.value;
+    return currentTemplate ? roadPathData(currentTemplate, props.size) : '';
+});
+
+const pennantArt = computed(() => {
+    const currentTemplate = template.value;
+    return currentTemplate ? pennantPlacements(currentTemplate, props.size) : [];
+});
+
+const cloisterArt = computed(() => {
+    const size = props.size;
+    return {
+        base: {
+            x: size * 0.38,
+            y: size * 0.4,
+            width: size * 0.24,
+            height: size * 0.22,
+            rx: size * 0.02
+        },
+        roof: `M ${size * 0.35} ${size * 0.41} L ${size * 0.5} ${size * 0.28} L ${size * 0.65} ${size * 0.41} Z`,
+        crossVertical: {
+            x1: size * 0.5,
+            y1: size * 0.28,
+            x2: size * 0.5,
+            y2: size * 0.22
+        },
+        crossHorizontal: {
+            x1: size * 0.46,
+            y1: size * 0.25,
+            x2: size * 0.54,
+            y2: size * 0.25
+        },
+        door: {
+            x: size * 0.47,
+            y: size * 0.54,
+            width: size * 0.06,
+            height: size * 0.08,
+            rx: size * 0.01
+        },
+        windows: [
+            { x: size * 0.41, y: size * 0.46, size: size * 0.04 },
+            { x: size * 0.55, y: size * 0.46, size: size * 0.04 }
+        ]
+    };
 });
 
 const edgeLabels = computed(() => {
@@ -149,13 +272,6 @@ const edgeLabels = computed(() => {
         x: positions[direction]!.x,
         y: positions[direction]!.y
     }));
-});
-
-const hasPennant = computed(() => (template.value?.cityPennants ?? []).some(count => count > 0));
-
-const pennantPath = computed(() => {
-    const size = props.size;
-    return `M ${size - 16} ${size * 0.08} L ${size - 6} ${size * 0.08} L ${size - 11} ${size * 0.2} Z`;
 });
 
 const followerLabelByType: Record<CarcassonneFollowerType, string> = {
@@ -190,44 +306,91 @@ const followerMarkers = computed(() => {
 
 <style scoped>
 .tile-base {
-    fill: #7fb069;
-    stroke: #3b2f1e;
-    stroke-width: 2px;
+    stroke: none;
 }
 
-.city-edge {
-    fill: #b98b5e;
-    stroke: #7a5637;
-    stroke-width: 2px;
+.tile-texture {
+    opacity: 0.85;
 }
 
-.road-edge {
-    stroke: #d9d9d9;
-    stroke-width: 8px;
+.road-outline {
+    fill: none;
+    stroke: #6b4f2a;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.road-surface {
+    fill: none;
+    stroke: #f2e3c2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.city-body {
+    stroke: #7a5528;
+    stroke-linejoin: round;
+}
+
+.city-highlight {
+    stroke: #e7c58e;
+    stroke-opacity: 0.55;
+    stroke-linejoin: round;
+}
+
+.cloister-building {
+    fill: #f5e8cf;
+    stroke: #7a5528;
+    stroke-linejoin: round;
+}
+
+.cloister-roof {
+    fill: #a8613f;
+    stroke: #6b3d28;
+    stroke-linejoin: round;
+}
+
+.cloister-cross {
+    stroke: #f6df9a;
     stroke-linecap: round;
 }
 
-.cloister-edge {
-    fill: #f0e6ff;
-    stroke: #6b4fa0;
-    stroke-width: 3px;
+.cloister-door {
+    fill: #5c3d27;
 }
 
-.cloister-inner {
-    fill: #6b4fa0;
+.cloister-window {
+    fill: #ffe9a8;
+    stroke: #7a5528;
+}
+
+.pennant-pole {
+    stroke: #5d4326;
+    stroke-linecap: round;
+}
+
+.pennant-flag {
+    fill: #ffd35c;
+    stroke: #8a6d00;
+    stroke-linejoin: round;
 }
 
 .edge-label {
     fill: #1f2d14;
-    font-size: 10px;
-    font-weight: bold;
+    font-size: 9px;
+    font-weight: 700;
     text-anchor: middle;
+    paint-order: stroke;
+    stroke: #fffdf0;
+    stroke-width: 1.5px;
+    stroke-linejoin: round;
     pointer-events: none;
 }
 
 .follower {
     stroke: #ffffff;
     stroke-width: 1.5px;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
 .follower-label {
@@ -238,10 +401,9 @@ const followerMarkers = computed(() => {
     pointer-events: none;
 }
 
-.pennant {
-    fill: #ffd700;
-    stroke: #8a6d00;
-    stroke-width: 1px;
+.tile-border {
+    stroke: #3f5a2b;
+    stroke-opacity: 0.55;
 }
 
 .coordinate-label {
