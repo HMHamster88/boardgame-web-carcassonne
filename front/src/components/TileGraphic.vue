@@ -72,9 +72,11 @@
                         class="edge-label">{{ label.text }}</text>
                 </template>
 
-                <g v-for="(marker, index) in followerMarkers" :key="`follower-${index}`">
-                    <circle :cx="marker.x" :cy="marker.y" :r="size * 0.075" :fill="marker.color" class="follower" />
-                    <text :x="marker.x" :y="marker.y + size * 0.03" class="follower-label">{{ marker.label }}</text>
+                <g v-for="(marker, index) in followerMarkers" :key="`follower-${index}`" class="meeple"
+                    :transform="`translate(${marker.x} ${marker.y}) rotate(${-rotation * 90}) scale(${size * 0.0026}) translate(-50 -52)`">
+                    <title>{{ marker.label }}</title>
+                    <path class="meeple-body" :fill="marker.color" :d="meeplePath" />
+                    <circle class="meeple-highlight" cx="44" cy="16" r="4.5" />
                 </g>
             </g>
 
@@ -278,11 +280,13 @@ const edgeLabels = computed(() => {
 });
 
 const followerLabelByType: Record<CarcassonneFollowerType, string> = {
-    knight: 'K',
-    thief: 'T',
-    farmer: 'F',
-    monk: 'M'
+    knight: 'Knight',
+    thief: 'Thief',
+    farmer: 'Farmer',
+    monk: 'Monk'
 };
+
+const meeplePath = 'M 50 6 C 58 6 64 12 64 20 C 64 26 61 31 56 34 L 78 46 C 82 48 84 52 84 56 L 84 60 C 84 64 80 66 76 64 L 60 55 L 60 68 L 72 90 C 74 94 71 98 67 98 C 65 98 63 97 62 95 L 50 76 L 38 95 C 37 97 35 98 33 98 C 29 98 26 94 28 90 L 40 68 L 40 55 L 24 64 C 20 66 16 64 16 60 L 16 56 C 16 52 18 48 22 46 L 44 34 C 39 31 36 26 36 20 C 36 12 42 6 50 6 Z';
 
 function getFollowerAnchor(follower: CarcassonneFollower): { x: number, y: number } {
     const currentTemplate = template.value;
@@ -292,14 +296,26 @@ function getFollowerAnchor(follower: CarcassonneFollower): { x: number, y: numbe
     return getFeatureAnchor(currentTemplate, follower.featureType, follower.segmentIndex);
 }
 
+function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+}
+
 const followerMarkers = computed(() => {
-    return props.followers.map((follower, index) => {
+    const counts = new Map<string, number>();
+
+    return props.followers.map((follower) => {
         const anchor = getFollowerAnchor(follower);
-        const offset = index * 1.9;
+        const key = `${follower.featureType}:${follower.segmentIndex}`;
+        const index = counts.get(key) ?? 0;
+        counts.set(key, index + 1);
+        const angle = index * 2.4;
+        const radius = index === 0 ? 0 : props.size * 0.09;
+        const marginX = props.size * 0.09;
+        const marginY = props.size * 0.13;
 
         return {
-            x: props.size * anchor.x + Math.cos(offset) * props.size * 0.05,
-            y: props.size * anchor.y + Math.sin(offset) * props.size * 0.05,
+            x: clamp(props.size * anchor.x + Math.cos(angle) * radius, marginX, props.size - marginX),
+            y: clamp(props.size * anchor.y + Math.sin(angle) * radius, marginY, props.size - marginY),
             color: props.players.find(player => player.userId === follower.playerId)?.color ?? '#ffffff',
             label: followerLabelByType[follower.type]
         };
@@ -392,18 +408,20 @@ const followerMarkers = computed(() => {
     pointer-events: none;
 }
 
-.follower {
-    stroke: #ffffff;
-    stroke-width: 1.5px;
+.meeple {
+    pointer-events: none;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
-.follower-label {
-    fill: #000000;
-    font-size: 8px;
-    font-weight: bold;
-    text-anchor: middle;
-    pointer-events: none;
+.meeple-body {
+    stroke: #2f2418;
+    stroke-width: 5.5;
+    stroke-linejoin: round;
+}
+
+.meeple-highlight {
+    fill: #ffffff;
+    opacity: 0.35;
 }
 
 .tile-border {
