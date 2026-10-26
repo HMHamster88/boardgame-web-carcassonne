@@ -72,6 +72,8 @@
             <g v-for="cell in emptyCells" :key="`empty-${cell.x}-${cell.y}`" :transform="cellTransform(cell)">
                 <rect class="empty-cell" :class="emptyCellClass(cell)" :width="tileSize" :height="tileSize"
                     @click="handleCellClick(cell)" />
+                <text v-if="needsRotation(cell)" :x="tileSize / 2" :y="tileSize / 2" class="rotate-icon"
+                    text-anchor="middle" dominant-baseline="central" aria-hidden="true">⟳</text>
             </g>
 
             <g v-for="tile in gameState.board" :key="tile.id" :transform="cellTransform(tile)">
@@ -385,8 +387,13 @@ function emptyCellClass(cell: { x: number, y: number }) {
     const key = positionKey(cell.x, cell.y);
     return {
         'can-place': canPlace.value && placeableCells.value.has(key),
-        'needs-rotation': canPlace.value && !placeableCells.value.has(key) && placeableCellsAnyRotation.value.has(key)
+        'needs-rotation': needsRotation(cell)
     };
+}
+
+function needsRotation(cell: { x: number, y: number }) {
+    const key = positionKey(cell.x, cell.y);
+    return canPlace.value && !placeableCells.value.has(key) && placeableCellsAnyRotation.value.has(key);
 }
 
 function followersOnTile(tileId: string) {
@@ -668,6 +675,17 @@ const props = defineProps({
 
 .empty-cell.needs-rotation:hover {
     fill: #ffe08a66;
+}
+
+.rotate-icon {
+    fill: #b26a00;
+    stroke: #fffdf0;
+    stroke-width: 2px;
+    paint-order: stroke;
+    font-size: 22px;
+    font-weight: 700;
+    pointer-events: none;
+    user-select: none;
 }
 
 .tile-preview {
