@@ -129,11 +129,13 @@ import {
     type CarcassonneDeployFollowerAction,
     type CarcassonneEndTurnAction,
     type CarcassonneFeatureType,
+    type CarcassonneFollower,
     type CarcassonneFollowerType,
     type CarcassonneGameSettings,
     type CarcassonnePlaceLandTileAction,
     type CarcassonnePlayerPrivateState,
     type CarcassonnePublicGameState,
+    type CarcassonneTile,
     type CarcassonneTileTemplate
 } from 'carcassonne-back';
 import { OButton } from '@oruga-ui/oruga-next';
@@ -386,6 +388,29 @@ function isSegmentOccupied(featureType: CarcassonneFeatureType, segmentIndex: nu
     return feature?.nodes.some(node => followerNodeKeys.value.has(node.key)) ?? false;
 }
 
+function hasAvailableDeployment(
+    tile: CarcassonneTile,
+    template: CarcassonneTileTemplate,
+    board: CarcassonneTile[],
+    followers: CarcassonneFollower[]
+): boolean {
+    const graph = buildFeatureGraph(board);
+    const occupiedNodeKeys = new Set(followers.map(followerNodeKey));
+    const featureTypes: CarcassonneFeatureType[] = ['city', 'road', 'field', 'cloister'];
+
+    return featureTypes.some(featureType =>
+        getFeatureGroupsForTemplate(template, featureType).some((group, segmentIndex) => {
+            if (!group || group.length === 0) {
+                return false;
+            }
+            const nodeKey = featureNodeKey(tile.id, featureType, segmentIndex);
+            const root = graph.nodeToFeature.get(nodeKey);
+            const feature = root ? graph.features.get(root) : undefined;
+            return !(feature?.nodes.some(node => occupiedNodeKeys.has(node.key)) ?? false);
+        })
+    );
+}
+
 function cellTransform(cell: { x: number, y: number }) {
     return `translate(${cell.x * tileSize}, ${cell.y * tileSize})`;
 }
@@ -454,19 +479,41 @@ function handleCellClick(cell: { x: number, y: number }) {
 
 function confirmPlacement() {
     const cell = selectedCell.value;
-    if (!canPlace.value || !cell || !selectedCellIsPlaceable.value) {
+    const templateId = props.gameState.currentTile;
+    if (!canPlace.value || !cell || !selectedCellIsPlaceable.value || !templateId) {
         return;
     }
+
+    const tileId = createTileId(cell.x, cell.y);
+    const placedTile: CarcassonneTile = {
+        id: tileId,
+        templateId,
+        x: cell.x,
+        y: cell.y,
+        rotation: rotation.value
+    };
+    const template = getTileTemplate(templateId);
+    const canDeploy = template
+        ? hasAvailableDeployment(
+            placedTile,
+            template,
+            [...props.gameState.board, placedTile],
+            props.gameState.followers
+        )
+        : false;
 
     selectedCell.value = null;
     const action: CarcassonnePlaceLandTileAction = {
         type: 'PlaceLandTileAction',
-        tileId: createTileId(cell.x, cell.y),
+        tileId,
         x: cell.x,
         y: cell.y,
         rotation: rotation.value
     };
     performAction(action);
+    if (followersInSupply.value <= 0 || (template && !canDeploy)) {
+        endTurn();
+    }
 }
 
 function deployFollower(option: DeploymentOption) {
