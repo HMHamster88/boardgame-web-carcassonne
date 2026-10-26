@@ -20,6 +20,13 @@
                 <span class="rotation-value">{{ rotation * 90 }}°</span>
                 <o-button size="small" @click="rotateRight">⟳</o-button>
             </div>
+            <o-button v-if="selectedCell" size="small" :disabled="!selectedCellIsPlaceable"
+                @click="confirmPlacement">
+                {{ t('confirmPlacement') }}
+            </o-button>
+            <span v-if="selectedCell" class="hint">
+                {{ selectedCellIsPlaceable ? t('confirmPlacementHint') : t('previewDoesNotFit') }}
+            </span>
             <span v-if="placeableCells.size === 0 && placeableCellsAnyRotation.size > 0" class="hint">
                 {{ t('rotateToPlaceHint') }}
             </span>
@@ -64,7 +71,7 @@
         <svg class="board" :viewBox="viewBox" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <g v-for="cell in emptyCells" :key="`empty-${cell.x}-${cell.y}`" :transform="cellTransform(cell)">
                 <rect class="empty-cell" :class="emptyCellClass(cell)" :width="tileSize" :height="tileSize"
-                    @click="placeTile(cell)" />
+                    @click="handleCellClick(cell)" />
             </g>
 
             <g v-for="tile in gameState.board" :key="tile.id" :transform="cellTransform(tile)">
@@ -74,6 +81,18 @@
                     :show-coordinates="playerGameSettings.showCoordinates" />
                 <rect v-if="tile.id === gameState.pendingTileId" class="pending-outline" :width="tileSize"
                     :height="tileSize" rx="4" />
+            </g>
+
+            <g v-if="selectedCell && canPlace && gameState.currentTile" :transform="cellTransform(selectedCell)"
+                class="tile-preview">
+                <g class="tile-preview-graphic" :class="{ invalid: !selectedCellIsPlaceable }">
+                    <TileGraphic :template-id="gameState.currentTile" :rotation="rotation" :size="tileSize"
+                        :x="selectedCell.x" :y="selectedCell.y"
+                        :show-features="playerGameSettings.showFeatures"
+                        :show-coordinates="playerGameSettings.showCoordinates" />
+                </g>
+                <rect class="tile-preview-outline" :class="{ invalid: !selectedCellIsPlaceable }"
+                    :width="tileSize" :height="tileSize" rx="4" />
             </g>
         </svg>
 
@@ -134,6 +153,9 @@ const { t } = useI18n({
             currentTile: 'Current tile',
             rotateToPlace: '{player} must rotate the tile to place it',
             rotateToPlaceHint: 'Click a highlighted cell to rotate the tile to a fitting angle',
+            confirmPlacement: 'Confirm placement',
+            confirmPlacementHint: 'Click the tile again or press Confirm to place it',
+            previewDoesNotFit: 'This rotation does not fit the selected cell',
             featureSegment: '{feature} {index}',
             noFollowers: 'All followers are already on the board',
             allFeaturesOccupied: 'Every feature on this tile already has a follower',
@@ -162,6 +184,9 @@ const { t } = useI18n({
             currentTile: 'Текущая плитка',
             rotateToPlace: '{player} должен повернуть плитку, чтобы выложить её',
             rotateToPlaceHint: 'Нажмите на подсвеченную клетку, чтобы повернуть плитку подходящим образом',
+            confirmPlacement: 'Подтвердить размещение',
+            confirmPlacementHint: 'Нажмите на плитку ещё раз или нажмите «Подтвердить размещение»',
+            previewDoesNotFit: 'Этот поворот не подходит для выбранной клетки',
             featureSegment: '{feature} {index}',
             noFollowers: 'Все подданные уже на поле',
             allFeaturesOccupied: 'На каждой области этой плитки уже есть подданный',
@@ -194,6 +219,7 @@ interface DeploymentOption {
 }
 
 const rotation = ref(0);
+const selectedCell = ref<{ x: number, y: number } | null>(null);
 
 const isLocalTurn = computed(() => {
     return props.localPlayerIndex !== undefined && props.localPlayerIndex === props.gameState.activePlayerIndex;
@@ -245,6 +271,15 @@ const placeableCellsAnyRotation = computed(() => {
             ))
             .map(cell => positionKey(cell.x, cell.y))
     );
+});
+
+const selectedCellIsPlaceable = computed(() => {
+    const cell = selectedCell.value;
+    const templateId = props.gameState.currentTile;
+    if (!cell || !templateId) {
+        return false;
+    }
+    return canPlaceTile(props.gameState.board, templateId, cell.x, cell.y, rotation.value);
 });
 
 const featureGraph = computed(() => buildFeatureGraph(props.gameState.board));
@@ -327,6 +362,7 @@ watch(
     () => [props.gameState.currentTile, props.gameState.pendingTileId],
     () => {
         rotation.value = 0;
+        selectedCell.value = null;
     }
 );
 
@@ -370,7 +406,7 @@ function createTileId(x: number, y: number) {
     return `tile-${x}-${y}-${randomPart}`;
 }
 
-function placeTile(cell: { x: number, y: number }) {
+function handleCellClick(cell: { x: number, y: number }) {
     if (!canPlace.value) {
         return;
     }
@@ -380,16 +416,35 @@ function placeTile(cell: { x: number, y: number }) {
         return;
     }
 
+    const selected = selectedCell.value;
+    const isSelected = selected?.x === cell.x && selected?.y === cell.y;
+
     if (!placeableCells.value.has(positionKey(cell.x, cell.y))) {
         const targetRotation = [0, 1, 2, 3].find(candidateRotation =>
             canPlaceTile(props.gameState.board, templateId, cell.x, cell.y, candidateRotation)
         );
         if (targetRotation !== undefined) {
             rotation.value = targetRotation;
+            selectedCell.value = { x: cell.x, y: cell.y };
         }
         return;
     }
 
+    if (isSelected) {
+        confirmPlacement();
+        return;
+    }
+
+    selectedCell.value = { x: cell.x, y: cell.y };
+}
+
+function confirmPlacement() {
+    const cell = selectedCell.value;
+    if (!canPlace.value || !cell || !selectedCellIsPlaceable.value) {
+        return;
+    }
+
+    selectedCell.value = null;
     const action: CarcassonnePlaceLandTileAction = {
         type: 'PlaceLandTileAction',
         tileId: createTileId(cell.x, cell.y),
@@ -613,6 +668,29 @@ const props = defineProps({
 
 .empty-cell.needs-rotation:hover {
     fill: #ffe08a66;
+}
+
+.tile-preview {
+    pointer-events: none;
+}
+
+.tile-preview-graphic {
+    opacity: 0.55;
+}
+
+.tile-preview-graphic.invalid {
+    opacity: 0.3;
+}
+
+.tile-preview-outline {
+    fill: none;
+    stroke: #2f7d32;
+    stroke-width: 4px;
+    stroke-dasharray: 8 4;
+}
+
+.tile-preview-outline.invalid {
+    stroke: #b23a2a;
 }
 
 .legend {
