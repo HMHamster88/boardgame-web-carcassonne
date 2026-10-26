@@ -10,14 +10,15 @@
 
         <div v-if="canPlace && gameState.currentTile" class="current-tile-panel">
             <span class="current-tile-title">{{ t('currentTile') }}</span>
-            <svg class="preview" :viewBox="`0 0 ${previewSize} ${previewSize}`"
-                xmlns="http://www.w3.org/2000/svg">
-                <TileGraphic :template-id="gameState.currentTile" :rotation="rotation" :size="previewSize"
-                    :show-features="playerGameSettings.showFeatures" />
-            </svg>
-            <div class="rotation-controls">
+            <div class="tile-rotation-row">
                 <o-button size="small" @click="rotateLeft">⟲</o-button>
-                <span class="rotation-value">{{ rotation * 90 }}°</span>
+                <div class="tile-rotation-preview">
+                    <svg class="preview" :viewBox="`0 0 ${previewSize} ${previewSize}`"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <TileGraphic :template-id="gameState.currentTile" :rotation="rotation" :size="previewSize"
+                            :show-features="playerGameSettings.showFeatures" />
+                    </svg>
+                </div>
                 <o-button size="small" @click="rotateRight">⟳</o-button>
             </div>
             <o-button v-if="selectedCell" size="small" :disabled="!selectedCellIsPlaceable"
@@ -33,7 +34,6 @@
         </div>
 
         <div v-if="isLocalTurn && gameState.pendingTileId" class="deploy-panel">
-            <span class="deploy-title">{{ t('deployOrEnd', { player: activePlayerName }) }}</span>
             <svg v-if="pendingTile && pendingTileTemplate" class="deploy-preview"
                 :viewBox="`0 0 ${deployPreviewSize} ${deployPreviewSize}`" xmlns="http://www.w3.org/2000/svg">
                 <TileGraphic :template-id="pendingTile.templateId" :rotation="pendingTile.rotation"
@@ -46,18 +46,11 @@
                             :transform="`translate(${option.anchor.x * deployPreviewSize} ${option.anchor.y * deployPreviewSize})`">
                             <g :transform="`rotate(${-pendingTile.rotation * 90})`">
                                 <circle cx="0" cy="0" :r="deployMarkerRadius" />
-                                <text x="0" y="3" text-anchor="middle">{{ option.index }}</text>
                             </g>
                         </g>
                     </g>
                 </g>
             </svg>
-            <div class="deploy-options">
-                <o-button v-for="option in deploymentOptions" :key="option.key" size="small"
-                    :disabled="option.disabled" @click="deployFollower(option)">
-                    {{ option.index }}. {{ option.label }}
-                </o-button>
-            </div>
             <span v-if="deploymentOptions.length > 0 && followersInSupply > 0" class="hint">
                 {{ t('deployHint') }}
             </span>
@@ -95,6 +88,21 @@
                 </g>
                 <rect class="tile-preview-outline" :class="{ invalid: !selectedCellIsPlaceable }"
                     :width="tileSize" :height="tileSize" rx="4" />
+            </g>
+
+            <g v-if="isLocalTurn && pendingTile && pendingTileTemplate" :transform="cellTransform(pendingTile)">
+                <g :transform="`rotate(${pendingTile.rotation * 90} ${tileSize / 2} ${tileSize / 2})`">
+                    <g v-for="option in deploymentOptions" :key="`board-marker-${option.key}`"
+                        class="deploy-marker board-deploy-marker" :class="{ disabled: option.disabled }"
+                        @click="deployFollower(option)">
+                        <title>{{ option.label }}</title>
+                        <g :transform="`translate(${option.anchor.x * tileSize} ${option.anchor.y * tileSize})`">
+                            <g :transform="`rotate(${-pendingTile.rotation * 90})`">
+                                <circle cx="0" cy="0" :r="boardDeployMarkerRadius" />
+                            </g>
+                        </g>
+                    </g>
+                </g>
             </g>
         </svg>
 
@@ -139,6 +147,7 @@ const tileSize = 64;
 const previewSize = 96;
 const deployPreviewSize = 96;
 const deployMarkerRadius = deployPreviewSize * 0.1;
+const boardDeployMarkerRadius = tileSize * 0.1;
 
 const { t } = useI18n({
     locale: 'en',
@@ -147,7 +156,7 @@ const { t } = useI18n({
             placeTile: '{player} places a tile',
             deployOrEnd: '{player} deploys a follower or ends the turn',
             deployFollower: 'Deploy follower',
-            deployHint: 'Click a numbered feature on the tile to deploy there, or use the buttons below',
+            deployHint: 'Click a circle on the tile to deploy a follower there',
             endTurn: 'End turn',
             gameFinished: 'Game finished',
             followersInSupply: 'Followers in supply: {count}',
@@ -178,7 +187,7 @@ const { t } = useI18n({
             placeTile: '{player} выкладывает плитку',
             deployOrEnd: '{player} выставляет подданного или завершает ход',
             deployFollower: 'Выставить подданного',
-            deployHint: 'Нажмите на пронумерованную область плитки, чтобы выставить подданного, или используйте кнопки ниже',
+            deployHint: 'Нажмите на кружок на плитке, чтобы выставить подданного',
             endTurn: 'Завершить ход',
             gameFinished: 'Игра завершена',
             followersInSupply: 'Подданных в запасе: {count}',
@@ -210,7 +219,6 @@ const { t } = useI18n({
 
 interface DeploymentOption {
     key: string;
-    index: number;
     featureType: CarcassonneFeatureType;
     segmentIndex: number;
     followerType: CarcassonneFollowerType;
@@ -314,7 +322,6 @@ const deploymentOptions = computed<DeploymentOption[]>(() => {
 
             options.push({
                 key: `${featureType}-${segmentIndex}`,
-                index: options.length + 1,
                 featureType,
                 segmentIndex,
                 followerType,
@@ -567,13 +574,30 @@ const props = defineProps({
     justify-content: center;
     gap: 0.75rem;
     padding: 0.5rem;
-    background-color: #f3ead7;
-    border-radius: 0.5rem;
+}
+
+.current-tile-panel,
+.deploy-panel {
+    flex-direction: column;
 }
 
 .current-tile-title,
 .deploy-title {
     font-weight: bold;
+}
+
+.tile-rotation-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.tile-rotation-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .preview,
@@ -592,14 +616,6 @@ const props = defineProps({
     stroke-width: 2px;
 }
 
-.deploy-marker text {
-    fill: #ffffff;
-    font-size: 10px;
-    font-weight: bold;
-    pointer-events: none;
-    user-select: none;
-}
-
 .deploy-marker:not(.disabled):hover circle {
     fill: #1f5a22;
 }
@@ -612,25 +628,6 @@ const props = defineProps({
     fill: #8a8a8a;
 }
 
-.rotation-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.rotation-value {
-    min-width: 3rem;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
-.deploy-options {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
 .hint {
     font-size: 0.9rem;
     color: #8a4b00;
@@ -639,8 +636,6 @@ const props = defineProps({
 .board {
     width: 100%;
     max-height: 640px;
-    background-color: #d9c9a3;
-    border-radius: 0.5rem;
 }
 
 .pending-outline {
