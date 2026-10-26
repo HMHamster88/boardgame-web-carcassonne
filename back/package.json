@@ -1,0 +1,40 @@
+{
+  "name": "carcassonne-back",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Carcassonne boardgame module for boardgame-web-ts",
+  "author": "",
+  "license": "MIT",
+  "homepage": "https://github.com/HMHamster88/boardgame-web-carcassonne#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HMHamster88/boardgame-web-carcassonne.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HMHamster88/boardgame-web-carcassonne/issues"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "release": "bumpp",
+    "prepublishOnly": "pnpm run build",
+    "link-common": "npm link boardgame-web-common"
+  },
+  "devDependencies": {
+    "@types/node": "25.6.2",
+    "@typescript/native-preview": "7.0.0-dev.20260509.2",
+    "bumpp": "11.1.0",
+    "tsdown": "0.22.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.5"
+  }
+}
