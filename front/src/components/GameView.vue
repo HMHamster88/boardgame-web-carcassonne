@@ -108,12 +108,6 @@
             </g>
             </svg>
         </BoardViewport>
-
-        <div class="legend">
-            <span v-for="item in legendItems" :key="item.type" class="legend-item">
-                <span class="legend-color" :class="`legend-${item.type}`"></span>{{ item.label }}
-            </span>
-        </div>
     </div>
 </template>
 
@@ -381,11 +375,6 @@ const deploymentOptions = computed<DeploymentOption[]>(() => {
     }
 
     return options;
-});
-
-const legendItems = computed(() => {
-    const types: CarcassonneFeatureType[] = ['city', 'road', 'field', 'cloister'];
-    return types.map(type => ({ type, label: t(`features.${type}`) }));
 });
 
 const boardViewBox = computed(() => {
@@ -766,42 +755,5 @@ const emit = defineEmits<{
 
 .tile-preview-outline.invalid {
     stroke: #b23a2a;
-}
-
-.legend {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.75rem;
-    font-size: 0.9rem;
-}
-
-.legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.legend-color {
-    width: 1rem;
-    height: 1rem;
-    border: 1px solid #3b2f1e;
-    border-radius: 0.2rem;
-}
-
-.legend-city {
-    background-color: #c8a165;
-}
-
-.legend-road {
-    background-color: #f2e3c2;
-}
-
-.legend-field {
-    background-color: #82b35a;
-}
-
-.legend-cloister {
-    background-color: #a8613f;
 }
 </style>
