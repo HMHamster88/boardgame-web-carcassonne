@@ -52,13 +52,13 @@ function supplyFor(privateState: CarcassonnePrivateGameState, playerId: string):
 }
 
 describe('scoreCompletedFeatures', () => {
-    it('scores a road closed by a cloister and the starting city', () => {
+    it('scores a road closed by a cloister and a city', () => {
         const board = [
-            placedTile('start', 'starting-tile', 0, 0),
-            placedTile('cloister-road', 'cloister-road', 0, 1)
+            placedTile('monastery', 'cloister-road', 0, 0),
+            placedTile('city', 'city-three-road', 0, -1)
         ];
         const publicState = makePublicState(board, [
-            follower('p1', 'thief', 'cloister-road', 'road', 0)
+            follower('p1', 'thief', 'monastery', 'road', 0)
         ]);
         const privateState = makePrivateState();
 
@@ -71,17 +71,19 @@ describe('scoreCompletedFeatures', () => {
 
     it('scores a completed city and every pennant in it', () => {
         const board = [
-            placedTile('city-a', 'city-cap', 0, 0),
-            placedTile('city-b', 'city-cap-road-pennant', 0, -1, 2)
+            placedTile('city-center', 'city-three-pennant', 0, 0),
+            placedTile('city-north', 'city-cap', 0, -1, 2),
+            placedTile('city-east', 'city-cap', 1, 0, 3),
+            placedTile('city-west', 'city-cap', -1, 0, 1)
         ];
         const publicState = makePublicState(board, [
-            follower('p1', 'knight', 'city-b', 'city', 0)
+            follower('p1', 'knight', 'city-center', 'city', 0)
         ]);
         const privateState = makePrivateState();
 
         scoreCompletedFeatures(privateState, publicState);
 
-        expect(pointsFor(publicState, 'p1')).toBe(6);
+        expect(pointsFor(publicState, 'p1')).toBe(10);
         expect(publicState.followers).toHaveLength(0);
         expect(supplyFor(privateState, 'p1')).toBe(8);
     });
@@ -154,7 +156,7 @@ describe('scoreFinalFeatures', () => {
     it('scores incomplete roads, cities and cloisters', () => {
         const board = [
             placedTile('road', 'road-straight', 0, 0),
-            placedTile('city', 'city-two-opposite', 5, 0),
+            placedTile('city', 'city-opposite-connected', 5, 0),
             placedTile('cloister', 'cloister', 10, 0),
             placedTile('cloister-left', 'cloister', 9, 0),
             placedTile('cloister-right', 'cloister', 11, 0),
@@ -173,7 +175,7 @@ describe('scoreFinalFeatures', () => {
 
     it('counts every city segment for an incomplete city', () => {
         const board = [
-            placedTile('city-a', 'city-two-opposite', 0, 0),
+            placedTile('city-a', 'city-opposite-connected', 0, 0),
             placedTile('city-b', 'city-cap', 0, -1, 2)
         ];
         const publicState = makePublicState(board, [

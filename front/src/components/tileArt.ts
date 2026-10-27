@@ -532,12 +532,60 @@ export function roadPathData(template: CarcassonneTileTemplate, size: number): s
     return paths.join(' ');
 }
 
+const CITY_CORNER_GAP = 0.0;
+
+/**
+ * Tiles can have two separate cities on adjacent edges. Each single edge city is drawn as a
+ * strip that spans its whole edge, so the strips would overlap in the corner. This cuts both
+ * strips with a diagonal and leaves the wedge of field that separates the cities on the
+ * original tiles.
+ */
+function trimSeparateCityCorner(
+    points: TilePoint[],
+    edge: number,
+    groups: number[][],
+    groupIndex: number
+): TilePoint[] {
+    if (points.length !== 4) {
+        return points;
+    }
+
+    const hasSeparateNext = groups.some((group, index) => index !== groupIndex && group.includes((edge + 1) % 4));
+    const hasSeparatePrevious = groups.some((group, index) => index !== groupIndex && group.includes((edge + 3) % 4));
+    if (!hasSeparateNext && !hasSeparatePrevious) {
+        return points;
+    }
+
+    // Single edge cities use the strip polygon: the corner shared with the previous edge,
+    // the corner shared with the next edge and the two inner corners between them.
+    const [previousCorner, nextCorner, nextInner, previousInner] = points as [
+        TilePoint, TilePoint, TilePoint, TilePoint
+    ];
+
+    const lerp = (from: TilePoint, to: TilePoint, t: number): TilePoint => ({
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + (to.y - from.y) * t
+    });
+
+    return [
+        hasSeparatePrevious ? lerp(previousCorner, nextCorner, CITY_CORNER_GAP) : previousCorner,
+        nextCorner,
+        hasSeparateNext ? lerp(nextInner, previousInner, CITY_DEPTH) : nextInner,
+        hasSeparatePrevious
+            ? lerp(previousInner, nextInner, CITY_DEPTH + CITY_CORNER_GAP)
+            : previousInner
+    ];
+}
+
 export function cityPaths(template: CarcassonneTileTemplate, size: number): CityPath[] {
     return template.cityGroups.flatMap((group, groupIndex) => {
-        const points = cityPolygonForEdges(group);
-        if (!points) {
+        const polygon = cityPolygonForEdges(group);
+        if (!polygon) {
             return [];
         }
+        const points = group.length === 1
+            ? trimSeparateCityCorner(polygon, group[0]!, template.cityGroups, groupIndex)
+            : polygon;
         const art = cityArtForEdges(points, group, size);
         return [{
             groupIndex,

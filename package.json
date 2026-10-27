@@ -24,6 +24,7 @@
     "copy-front": "node copy.js -front",
     "create-zip": "node create-zip.js",
     "create-release": "npm run build-all && npm run create-zip",
+    "render-tiles": "node ./scripts/render-tiles.mjs",
     "proc-routes": "node ./processing/process-routes-images.ts",
     "proc-game-field": "node ./processing/game-field-to-svg.ts",
     "proc-svg": "npx tsx ./processing/svg-to-json.ts"

@@ -36,13 +36,21 @@ export const followerTypeByFeature: Record<CarcassonneFeatureType, CarcassonneFo
     cloister: 'monk'
 };
 
+/**
+ * Base game tile set - 24 designs, 72 tiles, following the official Carcassonne
+ * distribution (the starting tile is one of the four "city + straight road" tiles).
+ *
+ * Edges are ordered north, east, south, west. Field sides are ordered clockwise:
+ * 0/1 = north edge (west/east half), 2/3 = east edge (north/south half),
+ * 4/5 = south edge (east/west half), 6/7 = west edge (south/north half).
+ */
 export const tileTemplates: CarcassonneTileTemplate[] = [
     {
         id: 'starting-tile',
-        edges: ['city', 'field', 'road', 'field'],
+        edges: ['city', 'road', 'field', 'road'],
         cityGroups: [[0]],
-        roadGroups: [[2]],
-        fieldSides: [[2, 3, 4], [5, 6, 7]],
+        roadGroups: [[1, 3]],
+        fieldSides: [[2, 7], [3, 4, 5, 6]],
         count: 1,
         starting: true
     },
@@ -52,24 +60,39 @@ export const tileTemplates: CarcassonneTileTemplate[] = [
         cityGroups: [[0]],
         roadGroups: [],
         fieldSides: [[2, 3, 4, 5, 6, 7]],
-        count: 8
+        count: 5
     },
     {
-        id: 'city-two-opposite',
-        edges: ['city', 'field', 'city', 'field'],
-        cityGroups: [[0, 2]],
-        roadGroups: [],
-        fieldSides: [[2, 3], [6, 7]],
-        count: 4
+        id: 'city-cap-road-through',
+        edges: ['city', 'road', 'field', 'road'],
+        cityGroups: [[0]],
+        roadGroups: [[1, 3]],
+        fieldSides: [[2, 7], [3, 4, 5, 6]],
+        count: 3
     },
     {
-        id: 'city-two-opposite-pennant',
-        edges: ['city', 'field', 'city', 'field'],
-        cityGroups: [[0, 2]],
-        cityPennants: [1],
-        roadGroups: [],
-        fieldSides: [[2, 3], [6, 7]],
-        count: 2
+        id: 'city-cap-road-curve',
+        edges: ['city', 'field', 'road', 'road'],
+        cityGroups: [[0]],
+        roadGroups: [[2, 3]],
+        fieldSides: [[5, 6], [2, 3, 4, 7]],
+        count: 3
+    },
+    {
+        id: 'city-cap-road-curve-east',
+        edges: ['city', 'road', 'road', 'field'],
+        cityGroups: [[0]],
+        roadGroups: [[1, 2]],
+        fieldSides: [[3, 4], [2, 5, 6, 7]],
+        count: 3
+    },
+    {
+        id: 'city-cap-road-t',
+        edges: ['city', 'road', 'road', 'road'],
+        cityGroups: [[0]],
+        roadGroups: [[1], [2], [3]],
+        fieldSides: [[3, 4], [5, 6], [2, 7]],
+        count: 3
     },
     {
         id: 'city-two-adjacent',
@@ -77,7 +100,7 @@ export const tileTemplates: CarcassonneTileTemplate[] = [
         cityGroups: [[0, 1]],
         roadGroups: [],
         fieldSides: [[4, 5, 6, 7]],
-        count: 4
+        count: 3
     },
     {
         id: 'city-two-adjacent-pennant',
@@ -86,6 +109,56 @@ export const tileTemplates: CarcassonneTileTemplate[] = [
         cityPennants: [1],
         roadGroups: [],
         fieldSides: [[4, 5, 6, 7]],
+        count: 2
+    },
+    {
+        id: 'city-two-adjacent-road',
+        edges: ['city', 'city', 'road', 'road'],
+        cityGroups: [[0, 1]],
+        roadGroups: [[2, 3]],
+        fieldSides: [[5, 6], [4, 7]],
+        count: 3
+    },
+    {
+        id: 'city-two-adjacent-road-pennant',
+        edges: ['city', 'city', 'road', 'road'],
+        cityGroups: [[0, 1]],
+        cityPennants: [1],
+        roadGroups: [[2, 3]],
+        fieldSides: [[5, 6], [4, 7]],
+        count: 2
+    },
+    {
+        id: 'two-cities-adjacent',
+        edges: ['city', 'city', 'field', 'field'],
+        cityGroups: [[0], [1]],
+        roadGroups: [],
+        fieldSides: [[4, 5, 6, 7]],
+        count: 2
+    },
+    {
+        id: 'two-cities-opposite',
+        edges: ['city', 'field', 'city', 'field'],
+        cityGroups: [[0], [2]],
+        roadGroups: [],
+        fieldSides: [[2, 3], [6, 7]],
+        count: 3
+    },
+    {
+        id: 'city-opposite-connected',
+        edges: ['city', 'field', 'city', 'field'],
+        cityGroups: [[0, 2]],
+        roadGroups: [],
+        fieldSides: [[2, 3], [6, 7]],
+        count: 1
+    },
+    {
+        id: 'city-opposite-connected-pennant',
+        edges: ['city', 'field', 'city', 'field'],
+        cityGroups: [[0, 2]],
+        cityPennants: [1],
+        roadGroups: [],
+        fieldSides: [[2, 3], [6, 7]],
         count: 2
     },
     {
@@ -103,6 +176,23 @@ export const tileTemplates: CarcassonneTileTemplate[] = [
         cityPennants: [1],
         roadGroups: [],
         fieldSides: [[4, 5]],
+        count: 1
+    },
+    {
+        id: 'city-three-road',
+        edges: ['city', 'city', 'road', 'city'],
+        cityGroups: [[0, 1, 3]],
+        roadGroups: [[2]],
+        fieldSides: [[4], [5]],
+        count: 1
+    },
+    {
+        id: 'city-three-road-pennant',
+        edges: ['city', 'city', 'road', 'city'],
+        cityGroups: [[0, 1, 3]],
+        cityPennants: [1],
+        roadGroups: [[2]],
+        fieldSides: [[4], [5]],
         count: 2
     },
     {
@@ -115,44 +205,21 @@ export const tileTemplates: CarcassonneTileTemplate[] = [
         count: 1
     },
     {
-        id: 'city-cap-road',
-        edges: ['city', 'field', 'road', 'field'],
-        cityGroups: [[0]],
-        roadGroups: [[2]],
-        fieldSides: [[2, 3, 4], [5, 6, 7]],
-        count: 8
+        id: 'cloister',
+        edges: ['field', 'field', 'field', 'field'],
+        cityGroups: [],
+        roadGroups: [],
+        fieldSides: [[0, 1, 2, 3, 4, 5, 6, 7]],
+        cloister: true,
+        count: 4
     },
     {
-        id: 'city-cap-road-pennant',
-        edges: ['city', 'field', 'road', 'field'],
-        cityGroups: [[0]],
-        cityPennants: [1],
-        roadGroups: [[2]],
-        fieldSides: [[2, 3, 4], [5, 6, 7]],
-        count: 2
-    },
-    {
-        id: 'city-adjacent-road',
-        edges: ['city', 'city', 'road', 'field'],
-        cityGroups: [[0, 1]],
-        roadGroups: [[2]],
-        fieldSides: [[5, 6, 7], [4]],
-        count: 3
-    },
-    {
-        id: 'city-opposite-road',
-        edges: ['city', 'field', 'city', 'road'],
-        cityGroups: [[0, 2]],
-        roadGroups: [[3]],
-        fieldSides: [[2, 3], [6], [7]],
-        count: 2
-    },
-    {
-        id: 'city-three-road',
-        edges: ['city', 'city', 'road', 'city'],
-        cityGroups: [[0, 1, 3]],
-        roadGroups: [[2]],
-        fieldSides: [[4], [5]],
+        id: 'cloister-road',
+        edges: ['road', 'field', 'field', 'field'],
+        cityGroups: [],
+        roadGroups: [[0]],
+        fieldSides: [[0, 1, 2, 3, 4, 5, 6, 7]],
+        cloister: true,
         count: 2
     },
     {
@@ -186,24 +253,6 @@ export const tileTemplates: CarcassonneTileTemplate[] = [
         roadGroups: [[0], [1], [2], [3]],
         fieldSides: [[1, 2], [3, 4], [5, 6], [0, 7]],
         count: 1
-    },
-    {
-        id: 'cloister',
-        edges: ['field', 'field', 'field', 'field'],
-        cityGroups: [],
-        roadGroups: [],
-        fieldSides: [[0, 1, 2, 3, 4, 5, 6, 7]],
-        cloister: true,
-        count: 4
-    },
-    {
-        id: 'cloister-road',
-        edges: ['road', 'field', 'field', 'field'],
-        cityGroups: [],
-        roadGroups: [[0]],
-        fieldSides: [[0, 1, 2, 3, 4, 5, 6, 7]],
-        cloister: true,
-        count: 2
     }
 ];
 

@@ -143,3 +143,6 @@ vite.config.ts.timestamp-*
 
 processing/output
 processing/input
+
+# Generated tile catalog (npm run render-tiles)
+tiles.html
