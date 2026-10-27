@@ -1,5 +1,6 @@
 <template>
-    <div class="carcassonne-game">
+    <div ref="gameRoot" class="carcassonne-game" :class="{ 'is-sized': gameHeight !== null }"
+        :style="gameHeightStyle">
         <div class="toolbar">
             <span class="status">{{ status }}</span>
             <span class="tiles-remaining">{{ t('tilesRemaining', { count: gameState.tilesRemaining }) }}</span>
@@ -136,7 +137,7 @@ import {
     type CarcassonneTileTemplate
 } from 'carcassonne-back';
 import { OButton } from '@oruga-ui/oruga-next';
-import { computed, ref, watch, type PropType } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BoardViewport from './BoardViewport.vue';
 import TileGraphic from './TileGraphic.vue';
@@ -408,6 +409,90 @@ const status = computed(() => {
     return t('placeTile', { player: activePlayerName.value });
 });
 
+const minGameHeight = 160;
+
+const gameRoot = ref<HTMLDivElement | null>(null);
+const gameHeight = ref<number | null>(null);
+let gameResizeObserver: ResizeObserver | null = null;
+
+const gameHeightStyle = computed(() => {
+    if (gameHeight.value === null) {
+        return undefined;
+    }
+    return { height: `${gameHeight.value}px` };
+});
+
+function findScrollContainer(element: HTMLElement): HTMLElement | null {
+    let node = element.parentElement;
+    while (node) {
+        const overflowY = getComputedStyle(node).overflowY;
+        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'hidden') {
+            return node;
+        }
+        node = node.parentElement;
+    }
+    return null;
+}
+
+function getBottomPadding(element: HTMLElement | null): number {
+    if (!element) {
+        return 0;
+    }
+    return parseFloat(getComputedStyle(element).paddingBottom) || 0;
+}
+
+function updateGameHeight() {
+    const root = gameRoot.value;
+    if (!root) {
+        return;
+    }
+    const parent = root.parentElement;
+    const rootRect = root.getBoundingClientRect();
+    const scrollContainer = findScrollContainer(root);
+    let available: number;
+    if (scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const topOffset = rootRect.top - containerRect.top + scrollContainer.scrollTop;
+        const bottomInset = getBottomPadding(parent)
+            + (parent === scrollContainer ? 0 : getBottomPadding(scrollContainer));
+        available = scrollContainer.clientHeight - topOffset - bottomInset;
+    } else {
+        available = window.innerHeight - rootRect.top - getBottomPadding(parent);
+    }
+    const nextHeight = Math.max(minGameHeight, Math.floor(available));
+    if (gameHeight.value === null || Math.abs(gameHeight.value - nextHeight) > 1) {
+        gameHeight.value = nextHeight;
+    }
+}
+
+function handleGameResize() {
+    updateGameHeight();
+}
+
+onMounted(async () => {
+    await nextTick();
+    updateGameHeight();
+    window.addEventListener('resize', handleGameResize);
+    if (typeof ResizeObserver !== 'undefined') {
+        const scrollContainer = gameRoot.value ? findScrollContainer(gameRoot.value) : null;
+        gameResizeObserver = new ResizeObserver(handleGameResize);
+        if (scrollContainer) {
+            gameResizeObserver.observe(scrollContainer);
+        }
+        gameResizeObserver.observe(document.body);
+    }
+});
+
+onUpdated(() => {
+    updateGameHeight();
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', handleGameResize);
+    gameResizeObserver?.disconnect();
+    gameResizeObserver = null;
+});
+
 watch(
     () => [props.gameState.currentTile, props.gameState.pendingTileId],
     () => {
@@ -596,6 +681,8 @@ const emit = defineEmits<{
     flex-direction: column;
     gap: 0.75rem;
     width: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .toolbar {
@@ -604,6 +691,7 @@ const emit = defineEmits<{
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
+    flex: 0 0 auto;
 }
 
 .status {
@@ -623,6 +711,7 @@ const emit = defineEmits<{
     justify-content: center;
     gap: 0.75rem;
     padding: 0.5rem;
+    flex: 0 0 auto;
 }
 
 .current-tile-panel,
@@ -682,11 +771,25 @@ const emit = defineEmits<{
     color: #8a4b00;
 }
 
+.carcassonne-game.is-sized :deep(.board-stage) {
+    flex: 1 1 0;
+    min-height: 8rem;
+}
+
+.carcassonne-game.is-sized :deep(.board-viewport) {
+    height: 100%;
+}
+
 .board {
     display: block;
     width: 100%;
+    height: 100%;
     max-height: 640px;
     user-select: none;
+}
+
+.carcassonne-game.is-sized .board {
+    max-height: none;
 }
 
 .pending-outline {
