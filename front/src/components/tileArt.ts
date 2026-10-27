@@ -8,10 +8,16 @@ interface TileRect {
     height: number;
 }
 
+export interface CityTower {
+    x: number;
+    y: number;
+}
+
 export interface CityPath {
     groupIndex: number;
     d: string;
     walls: string[];
+    towers: CityTower[];
 }
 
 export interface PennantArt {
@@ -264,6 +270,79 @@ function smoothPathCommands(points: TilePoint[], size: number, includeMove: bool
     return commands;
 }
 
+/**
+ * Flattens the smoothed wall line (the one built by smoothPathCommands) into a dense
+ * polyline, so towers can be placed exactly on the drawn wall.
+ */
+function smoothPolyline(points: TilePoint[], stepsPerCurve = 8): TilePoint[] {
+    if (points.length < 3) {
+        return [...points];
+    }
+
+    const midpoints = points.slice(0, -1).map((point, index) => midpoint(point, points[index + 1]!));
+    const polyline: TilePoint[] = [points[0]!, midpoints[0]!];
+
+    for (let index = 1; index < points.length - 1; index += 1) {
+        const from = midpoints[index - 1]!;
+        const control = points[index]!;
+        const to = midpoints[index]!;
+        for (let step = 1; step <= stepsPerCurve; step += 1) {
+            polyline.push(quadraticPoint(from, control, to, step / stepsPerCurve));
+        }
+    }
+
+    polyline.push(points[points.length - 1]!);
+    return polyline;
+}
+
+function polylineToPath(points: TilePoint[], size: number): string {
+    if (points.length === 0) {
+        return '';
+    }
+    const [first, ...rest] = points;
+    return [`M ${formatPoint(first!, size)}`, ...rest.map(point => `L ${formatPoint(point, size)}`)].join(' ');
+}
+
+const TOWER_SPACING = 0.5;
+const TOWER_MIN_WALL_LENGTH = 0.2;
+
+function towersAlongPolyline(points: TilePoint[]): CityTower[] {
+    const segments: { from: TilePoint; to: TilePoint; length: number; start: number }[] = [];
+    let total = 0;
+
+    for (let index = 0; index < points.length - 1; index += 1) {
+        const from = points[index]!;
+        const to = points[index + 1]!;
+        const length = Math.hypot(to.x - from.x, to.y - from.y);
+        if (length < 0.0001) {
+            continue;
+        }
+        segments.push({ from, to, length, start: total });
+        total += length;
+    }
+
+    if (total < TOWER_MIN_WALL_LENGTH) {
+        return [];
+    }
+
+    const count = Math.max(1, Math.round(total / TOWER_SPACING));
+    const towers: CityTower[] = [];
+
+    for (let index = 0; index < count; index += 1) {
+        const distance = total * ((index + 0.5) / count);
+        const segment = segments.find(candidate =>
+            distance >= candidate.start && distance <= candidate.start + candidate.length) ?? segments[segments.length - 1]!;
+        const t = Math.min(1, Math.max(0, (distance - segment.start) / segment.length));
+
+        towers.push({
+            x: segment.from.x + (segment.to.x - segment.from.x) * t,
+            y: segment.from.y + (segment.to.y - segment.from.y) * t
+        });
+    }
+
+    return towers;
+}
+
 function segmentEdge(from: TilePoint, to: TilePoint): number | undefined {
     if (from.y === 0 && to.y === 0) {
         return 0;
@@ -280,9 +359,9 @@ function segmentEdge(from: TilePoint, to: TilePoint): number | undefined {
     return undefined;
 }
 
-function cityArtForEdges(points: TilePoint[], edges: number[], size: number): { d: string; walls: string[] } {
+function cityArtForEdges(points: TilePoint[], edges: number[], size: number): { d: string; walls: string[]; towers: CityTower[] } {
     if (points.length === 0) {
-        return { d: '', walls: [] };
+        return { d: '', walls: [], towers: [] };
     }
 
     const openEdges = new Set(edges);
@@ -297,13 +376,14 @@ function cityArtForEdges(points: TilePoint[], edges: number[], size: number): { 
     });
 
     if (!segments.some(segment => segment.wall)) {
-        return { d: polygonToPath(points, size), walls: [] };
+        return { d: polygonToPath(points, size), walls: [], towers: [] };
     }
 
     const startIndex = segments.findIndex(segment => !segment.wall);
     const start = startIndex === -1 ? 0 : startIndex;
     const commands: string[] = [`M ${formatPoint(points[start]!, size)}`];
     const walls: string[] = [];
+    const towers: CityTower[] = [];
     let offset = 0;
 
     while (offset < segments.length) {
@@ -326,13 +406,14 @@ function cityArtForEdges(points: TilePoint[], edges: number[], size: number): { 
 
         const adjusted = chain.map((point, index) =>
             insetWallPoint(point, index === 0 || index === chain.length - 1));
-        const wallCommands = smoothPathCommands(adjusted, size, false);
-        commands.push(...wallCommands);
-        walls.push([`M ${formatPoint(adjusted[0]!, size)}`, ...wallCommands].join(' '));
+        const polyline = smoothPolyline(adjusted);
+        commands.push(...polyline.slice(1).map(point => `L ${formatPoint(point, size)}`));
+        walls.push(polylineToPath(polyline, size));
+        towers.push(...towersAlongPolyline(polyline));
     }
 
     commands.push('Z');
-    return { d: commands.join(' '), walls };
+    return { d: commands.join(' '), walls, towers };
 }
 
 const ROAD_WOBBLE_AMPLITUDE = 0.032;
@@ -461,7 +542,8 @@ export function cityPaths(template: CarcassonneTileTemplate, size: number): City
         return [{
             groupIndex,
             d: art.d,
-            walls: art.walls
+            walls: art.walls,
+            towers: art.towers
         }];
     });
 }

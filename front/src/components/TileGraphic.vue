@@ -35,11 +35,18 @@
 
                 <g v-for="city in cityArt" :key="`city-${city.groupIndex}`" class="city">
                     <path :d="city.d" :fill="`url(#${cityPatternId})`" class="city-body" />
-                    <path v-for="(wall, wallIndex) in city.walls" :key="`city-wall-${city.groupIndex}-${wallIndex}`"
-                        :d="wall" fill="none" class="city-wall" :stroke-width="size * 0.035" />
+                    <path v-for="(wall, wallIndex) in city.walls" :key="`city-wall-outline-${city.groupIndex}-${wallIndex}`"
+                        :d="wall" fill="none" class="city-wall-outline" :stroke-width="size * 0.048" />
                     <path v-for="(wall, wallIndex) in city.walls"
-                        :key="`city-wall-highlight-${city.groupIndex}-${wallIndex}`" :d="wall" fill="none"
-                        class="city-highlight" :stroke-width="size * 0.012" />
+                        :key="`city-wall-${city.groupIndex}-${wallIndex}`" :d="wall" fill="none"
+                        class="city-wall" :stroke-width="size * 0.03" />
+                    <g v-for="(tower, towerIndex) in city.towers"
+                        :key="`city-tower-${city.groupIndex}-${towerIndex}`" class="city-tower"
+                        :transform="`translate(${tower.x * size} ${tower.y * size}) rotate(${-rotation * 90})`">
+                        <circle cx="0" cy="0" :r="towerRadius" class="city-tower-body"
+                            :stroke-width="size * 0.012" />
+                        <path :d="towerRoofPath" class="city-tower-roof" :stroke-width="size * 0.01" />
+                    </g>
                 </g>
 
                 <g v-if="template.cloister" class="cloister"
@@ -219,6 +226,13 @@ const cityArt = computed(() => {
     return currentTemplate ? cityPaths(currentTemplate, props.size) : [];
 });
 
+const towerRadius = computed(() => props.size * 0.044);
+
+const towerRoofPath = computed(() => {
+    const radius = towerRadius.value;
+    return `M ${-radius * 1.05} ${-radius * 0.55} L 0 ${-radius * 1.95} L ${radius * 1.05} ${-radius * 0.55} Z`;
+});
+
 const roadD = computed(() => {
     const currentTemplate = template.value;
     return currentTemplate ? roadPathData(currentTemplate, props.size) : '';
@@ -355,17 +369,27 @@ const followerMarkers = computed(() => {
     stroke-linejoin: round;
 }
 
-.city-wall {
-    stroke: #7a5528;
+.city-wall-outline {
+    stroke: #6d5b3f;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
 
-.city-highlight {
-    stroke: #e7c58e;
-    stroke-opacity: 0.55;
+.city-wall {
+    stroke: #f8f4e8;
     stroke-linejoin: round;
     stroke-linecap: round;
+}
+
+.city-tower-body {
+    fill: #f8f4e8;
+    stroke: #6d5b3f;
+}
+
+.city-tower-roof {
+    fill: #3d6fbd;
+    stroke: #274a86;
+    stroke-linejoin: round;
 }
 
 .cloister-building {
