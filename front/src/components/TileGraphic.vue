@@ -2,7 +2,7 @@
     <g v-if="template">
         <defs>
             <pattern :id="grassPatternId" :width="grassPattern.width" :height="grassPattern.height"
-                patternUnits="userSpaceOnUse">
+                patternUnits="userSpaceOnUse" :patternTransform="texturePatternTransform">
                 <path v-for="(tuft, index) in grassPattern.tufts" :key="`grass-${index}`" :d="tuft.d" fill="none"
                     stroke="#5d8640" :stroke-width="tuft.width" stroke-linecap="round" :opacity="tuft.opacity" />
                 <circle :cx="grassPattern.dot.cx" :cy="grassPattern.dot.cy" :r="grassPattern.dot.r" fill="#5d8640"
@@ -10,7 +10,7 @@
             </pattern>
 
             <pattern :id="cityPatternId" :width="cityPattern.width" :height="cityPattern.height"
-                patternUnits="userSpaceOnUse">
+                patternUnits="userSpaceOnUse" :patternTransform="texturePatternTransform">
                 <rect :width="cityPattern.width" :height="cityPattern.height" fill="#c8a165" />
                 <g v-for="(building, index) in cityPattern.buildings" :key="`building-${index}`">
                     <rect :x="building.x" :y="building.y" :width="building.width" :height="building.height"
@@ -203,6 +203,15 @@ const cityPattern = computed(() => {
             }
         ]
     };
+});
+
+/**
+ * The tile graphic is rotated as a whole, but the field and city textures should stay
+ * upright, so the patterns get counter-rotated around the tile center.
+ */
+const texturePatternTransform = computed(() => {
+    const degrees = -props.rotation * 90;
+    return degrees === 0 ? undefined : `rotate(${degrees} ${props.size / 2} ${props.size / 2})`;
 });
 
 const cityArt = computed(() => {
