@@ -335,6 +335,82 @@ function cityArtForEdges(points: TilePoint[], edges: number[], size: number): { 
     return { d: commands.join(' '), walls };
 }
 
+const ROAD_WOBBLE_AMPLITUDE = 0.032;
+
+function roadSeed(from: TilePoint, to: TilePoint, salt: number): number {
+    return Math.abs(from.x * 7.3 + from.y * 13.7 + to.x * 19.1 + to.y * 29.3 + salt * 3.7);
+}
+
+function roadNoise(seed: number): number {
+    const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+    return value - Math.floor(value);
+}
+
+function quadraticPoint(from: TilePoint, control: TilePoint, to: TilePoint, t: number): TilePoint {
+    const inverse = 1 - t;
+    return {
+        x: inverse * inverse * from.x + 2 * inverse * t * control.x + t * t * to.x,
+        y: inverse * inverse * from.y + 2 * inverse * t * control.y + t * t * to.y
+    };
+}
+
+function quadraticTangent(from: TilePoint, control: TilePoint, to: TilePoint, t: number): TilePoint {
+    return {
+        x: 2 * (1 - t) * (control.x - from.x) + 2 * t * (to.x - control.x),
+        y: 2 * (1 - t) * (control.y - from.y) + 2 * t * (to.y - control.y)
+    };
+}
+
+/**
+ * Builds a road centerline that is not perfectly straight: the line gets a small,
+ * deterministic lateral wobble. The wobble fades to zero at both ends (together with
+ * its slope), so roads still connect smoothly at the tile borders.
+ */
+function wobblyRoadPath(
+    from: TilePoint,
+    to: TilePoint,
+    control: TilePoint | undefined,
+    size: number,
+    salt: number
+): string {
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    if (distance < 0.0001) {
+        return '';
+    }
+
+    const steps = Math.max(3, Math.min(8, Math.round(distance * 5)));
+    const seed = roadSeed(from, to, salt);
+    const primaryPhase = roadNoise(seed) * Math.PI * 2;
+    const secondaryPhase = roadNoise(seed + 5.7) * Math.PI * 2;
+    const points: TilePoint[] = [];
+
+    for (let index = 0; index <= steps; index += 1) {
+        const t = index / steps;
+        const base = control ? quadraticPoint(from, control, to, t) : {
+            x: from.x + (to.x - from.x) * t,
+            y: from.y + (to.y - from.y) * t
+        };
+        const tangent = control ? quadraticTangent(from, control, to, t) : {
+            x: to.x - from.x,
+            y: to.y - from.y
+        };
+        const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
+        const normal = { x: -tangent.y / tangentLength, y: tangent.x / tangentLength };
+        const envelope = Math.sin(Math.PI * t) ** 2;
+        const offset = ROAD_WOBBLE_AMPLITUDE * envelope * (
+            Math.sin(2 * Math.PI * t + primaryPhase) * 0.75
+            + Math.sin(4 * Math.PI * t + secondaryPhase) * 0.25
+        );
+
+        points.push({
+            x: base.x + normal.x * offset,
+            y: base.y + normal.y * offset
+        });
+    }
+
+    return smoothPathCommands(points, size, true).join(' ');
+}
+
 export function roadPathData(template: CarcassonneTileTemplate, size: number): string {
     const allCityRects = template.cityGroups.flatMap(cityRectsForEdges);
     const paths: string[] = [];
@@ -349,7 +425,7 @@ export function roadPathData(template: CarcassonneTileTemplate, size: number): s
             const origin = edgeMidpoints[edge]!;
             const direction = inwardDirections[edge]!;
             const end = findCityIntersection(origin, direction, allCityRects) ?? { x: 0.5, y: 0.5 };
-            paths.push(`M ${formatPoint(origin, size)} L ${formatPoint(end, size)}`);
+            paths.push(wobblyRoadPath(origin, end, undefined, size, edge));
             continue;
         }
 
@@ -359,18 +435,16 @@ export function roadPathData(template: CarcassonneTileTemplate, size: number): s
             const end = edgeMidpoints[secondEdge]!;
             const key = [firstEdge, secondEdge].sort((a, b) => a - b).join('');
             if (key === '02' || key === '13') {
-                paths.push(`M ${formatPoint(start, size)} L ${formatPoint(end, size)}`);
+                paths.push(wobblyRoadPath(start, end, undefined, size, firstEdge));
             } else {
-                paths.push(
-                    `M ${formatPoint(start, size)} Q ${formatPoint({ x: 0.5, y: 0.5 }, size)} ${formatPoint(end, size)}`
-                );
+                paths.push(wobblyRoadPath(start, end, { x: 0.5, y: 0.5 }, size, firstEdge));
             }
             continue;
         }
 
         for (const edge of group) {
             const origin = edgeMidpoints[edge]!;
-            paths.push(`M ${formatPoint(origin, size)} L ${(size / 2).toFixed(2)} ${(size / 2).toFixed(2)}`);
+            paths.push(wobblyRoadPath(origin, { x: 0.5, y: 0.5 }, undefined, size, edge));
         }
     }
 

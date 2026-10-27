@@ -30,8 +30,8 @@
                 <rect :width="size" :height="size" :fill="`url(#${grassPatternId})`"
                     class="tile-texture" />
 
-                <path v-if="roadD" :d="roadD" class="road-outline" :stroke-width="size * 0.055" />
-                <path v-if="roadD" :d="roadD" class="road-surface" :stroke-width="size * 0.032" />
+                <path v-if="roadD" :d="roadD" class="road-outline" :stroke-width="size * 0.0825" />
+                <path v-if="roadD" :d="roadD" class="road-surface" :stroke-width="size * 0.048" />
 
                 <g v-for="city in cityArt" :key="`city-${city.groupIndex}`" class="city">
                     <path :d="city.d" :fill="`url(#${cityPatternId})`" class="city-body" />
