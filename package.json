@@ -1,6 +1,6 @@
 {
   "name": "carcassonne",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Carcassonne boardgame module for boardgame-web-ts",
   "license": "ISC",
   "author": "",
